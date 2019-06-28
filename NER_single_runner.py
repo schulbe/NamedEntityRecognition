@@ -139,7 +139,10 @@ if __name__ == '__main__':
         ners = load_sorted_taggers('/home/bschulz/ner/gridsearch')
         try:
             stats = [get_precision_recall(ner, vars.LABELLED, 150, vars.SEED_DOCS) for ner in ners]
-        except:
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+
             import ipdb; ipdb.set_trace()
 
         mlflow.log_param('train_min_pos_rate', ner.train_min_pos_rate)
