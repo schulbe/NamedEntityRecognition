@@ -38,7 +38,7 @@ class NERTagger:
 
         # TODO: change for multiple possible labels
         self.seedlist = entities[0]['seed']
-        self.entity_name = entities[0]['name'].lower()
+        self.entity_name = entities[0]['name']
         self.window = window
         self.n_jobs = n_jobs
 
@@ -53,7 +53,7 @@ class NERTagger:
         self.encoder.fit([token.lower() for doc in self.tokenized_corpus for token in doc]
                          + self.seedlist +
                          ['\u0002PADDING\u0002'] +
-                         [f'\u0002{ent["name"].lower()}\u0002' for ent in entities])
+                         [f'\u0002{ent["name"]}\u0002' for ent in entities])
         self.encoded_corpus = None
         self.encode_corpus()
         self.encoded_seedlist = self.encoder.transform(self.seedlist)
@@ -167,7 +167,7 @@ class NERTagger:
 
         while iteration < max_iterations and (update_rate is None or update_rate >= min_update_rate):
             iteration += 1
-            logging.info('ITERATION {iteration}....')
+            logging.info(f'ITERATION {iteration}....')
             name_probas = self.do_iteration()
 
             logging.info('Get New Seed Probabilities...')
