@@ -178,6 +178,7 @@ if __name__ == '__main__':
 
     mlp_model = Sequential()
     mlp_model.add(Embedding(model_dims['num_labels'], EMBEDDING_SIZE, input_length=model_dims['in_dim']))
+    mlp_model.add(Flatten())
     mlp_model.add(Dense(1000, activation='relu'))
     mlp_model.add(Dropout(0.5))
     mlp_model.add(Dense(model_dims['out_dim'], activation='softmax'))
