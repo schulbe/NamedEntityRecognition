@@ -158,7 +158,7 @@ class NerFormatter(logging.Formatter):
 
         vars = {
             'message': record.get('message', None),
-            'passed_time': datetime.fromtimestamp(record.get('created')-self.start_time).strftime('%H:%M:%S.%f'),
+            'passed_time': str(datetime.fromtimestamp(record.get('created'))-self.start_time)
         }
         return self.base_string.format(**vars)
 
