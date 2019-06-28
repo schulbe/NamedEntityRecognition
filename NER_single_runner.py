@@ -212,7 +212,7 @@ if __name__ == '__main__':
     mlp_model.add(Dense(model_dims['out_dim'], activation='softmax'))
 
     MODEL_PARAMS = {
-        "epochs": 3,
+        "epochs": 2,
         "batch_size": 256,
         "loss": "categorical_crossentropy",
         "metrics": ["accuracy"],
