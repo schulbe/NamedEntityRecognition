@@ -150,7 +150,7 @@ class NERTagger:
         # _ = self.model.fit(X_strat, y_strat)
 
         logging.info('Training Classifier...')
-        _ = self.model.fit(X_masked, y, class_weight={0: sum(y[:, 1]), 1: sum(y[:, 0])})
+        _ = self.model.fit(X_masked, y, class_weight={0: 1., 1: sum(y[:, 0])/sum(y[:, 1])})
 
         logging.info('Calculating Name Probabilities...')
         name_probas = list(zip(tokens, self.model.predict_proba(X)[:, 1]))

@@ -10,7 +10,8 @@ set_random_seed(vars.SEED)
 
 from NER import NERTagger
 import traceback
-
+import logging
+from datetime import datetime
 import mlflow
 import json
 import os
@@ -145,7 +146,34 @@ def get_precision_recall_spacy(nlp, labels, max_num, corpus, tokenize_fn, seed_d
     return precision, recall, f_score, support
 
 
+class NerFormatter(logging.Formatter):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.base_string = "{passed_time} -- {message}"
+        self.start_time = datetime.now()
+
+    def format(self, record):
+        record = record.__dict__
+
+        vars = {
+            'message': record.get('message', None),
+            'passed_time': datetime.fromtimestamp(record.get('created')-self.start_time).strftime('%H:%M:%S.%f'),
+        }
+        return self.base_string.format(**vars)
+
+
 if __name__ == '__main__':
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+
+    formatter = NerFormatter()
+    ch.setFormatter(formatter)
+
+    logger.addHandler(ch)
 
     init_config = {
         'window': 3,
