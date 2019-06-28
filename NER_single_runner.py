@@ -108,13 +108,13 @@ if __name__ == '__main__':
     mlp_model = Sequential()
     mlp_model.add(Embedding(model_dims['num_labels'], EMBEDDING_SIZE, input_length=model_dims['in_dim']))
     mlp_model.add(Flatten())
-    mlp_model.add(Dense(500, activation='relu'))
+    mlp_model.add(Dense(1000, activation='relu'))
     mlp_model.add(Dropout(0.5))
     mlp_model.add(Dense(model_dims['out_dim'], activation='softmax'))
 
     MODEL_PARAMS = {
         "epochs": 2,
-        "batch_size": 512,
+        "batch_size": 256,
         "loss": "categorical_crossentropy",
         "metrics": ["accuracy"],
         "optimizer": keras.optimizers.Adam(amsgrad=False,
