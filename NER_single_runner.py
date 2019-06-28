@@ -89,9 +89,21 @@ def get_precision_recall(ner, labels, max_num, seed_docs):
                 else:
                     true_neg += 1
 
-    precision = true_pos/(true_pos+false_pos)
-    recall = true_pos/(true_pos+false_neg)
-    f_score = 2*precision*recall/(precision+recall)
+    try:
+        precision = true_pos/(true_pos+false_pos)
+    except ZeroDivisionError:
+        precision = 0
+
+    try:
+        recall = true_pos/(true_pos+false_neg)
+    except ZeroDivisionError:
+        recall = 0
+
+    try:
+        f_score = 2*precision*recall/(precision+recall)
+    except ZeroDivisionError:
+        f_score=0
+
     support = true_pos+false_neg
     return precision, recall, f_score, support
     # return (precision, recall, f_score, support), false_pos_list
