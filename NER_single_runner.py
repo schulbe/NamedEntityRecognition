@@ -185,7 +185,7 @@ if __name__ == '__main__':
 
     MODEL_PARAMS = {
         "epochs": 3,
-        "batch_size": 1000,
+        "batch_size": 256,
         "loss": "categorical_crossentropy",
         "metrics": ["accuracy"],
         "optimizer": keras.optimizers.Adam(amsgrad=False,
