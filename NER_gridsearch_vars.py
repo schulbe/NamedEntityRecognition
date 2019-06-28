@@ -6,7 +6,7 @@ NON_WORD_BOUNDARIES = list(KEYWORD_PROCESSOR.non_word_boundaries | {'Ä', 'Ö', 
 
 SEED = 1234
 
-ENTITY_NAME = 'NAME'
+ENTITY_NAME = 'name'
 SEED_LIST = ['scholz',
              'tim',
              'kühnel',

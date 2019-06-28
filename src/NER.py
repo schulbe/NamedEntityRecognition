@@ -307,7 +307,7 @@ class NERTagger:
         pickle_object(str(path / 'attributes.pkl'), obj=attributes)
 
     @classmethod
-    def load(cls, path):
+    def cload(cls, path):
         #TODO
         if isinstance(path, str):
             path = Path(path)
