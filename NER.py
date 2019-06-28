@@ -159,7 +159,7 @@ class NERTagger:
         update_rate = None
 
         t = datetime.now()
-        while iteration < max_iterations and (updatepip install -r requirements.txt_rate is None or update_rate >= min_update_rate):
+        while iteration < max_iterations and (update_rate is None or update_rate >= min_update_rate):
             iteration += 1
             print(f'\n{(datetime.now()-t)} -- ITERATION {iteration}....\n')
             name_probas = self.do_iteration(t=t)
