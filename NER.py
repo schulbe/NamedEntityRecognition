@@ -31,8 +31,10 @@ class NERTagger:
                  train_min_pos_rate,
                  seed,
                  **kwargs):
-
+        t = datetime.now()
+        print(f'{(datetime.now()-t)} -- Initializing...')
         self.corpus = corpus
+
         # TODO: change for multiple possible labels
         self.seedlist = entities[0]['seed']
         self.entity_name = entities[0]['name']
@@ -42,9 +44,11 @@ class NERTagger:
         self.train_min_pos_rate = train_min_pos_rate
         self.seed = seed
 
+        print(f'{(datetime.now()-t)} -- Tokenizing Corpus...')
         self.tokenized_corpus = [text_to_word_sequence(doc) for doc in self.corpus]
 
         self.encoder = FastEncoder()
+        print(f'{(datetime.now()-t)} -- Fitting Encoder...')
         self.encoder.fit([token.lower() for doc in self.tokenized_corpus for token in doc]
                          + self.seedlist +
                          ['\u0002PADDING\u0002'] +
@@ -58,6 +62,7 @@ class NERTagger:
         self.encoded_entity = self.encoder.transform([f'\u0002{self.entity_name}\u0002'])
 
         if not kwargs.get('load', False):
+            print(f'{(datetime.now()-t)} -- Getting Token Counts...')
             self.token_rel = self.get_token_count(relative=True)
             self.token_abs = self.get_token_count(relative=False)
 
@@ -144,6 +149,7 @@ class NERTagger:
         print(f'{(datetime.now()-t)} -- Stratifying for equal positives and negatives...')
         X_strat, y_strat = self.duplicate_positives(X_masked, y)
         print(f'{(datetime.now()-t)} -- Training Classifier...')
+        import ipdb; ipdb.set_trace()
         _ = self.model.fit(X_strat, y_strat)
         print()
         print(f'{(datetime.now()-t)} -- Calculating Name Probabilities...')
