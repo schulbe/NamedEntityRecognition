@@ -155,7 +155,6 @@ class NerFormatter(logging.Formatter):
 
     def format(self, record):
         record = record.__dict__
-        import ipdb; ipdb.set_trace()
         vars = {
             'message': record.get('msg', None),
             'passed_time': str(datetime.fromtimestamp(record.get('created'))-self.start_time)
