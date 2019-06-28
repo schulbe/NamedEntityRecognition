@@ -166,7 +166,7 @@ if __name__ == '__main__':
 
     setup(GPU_ID='0', clear_session=True)
 
-    ner = NERTagger(vars.CORPUS[:2000],
+    ner = NERTagger(vars.CORPUS,
                     entities=[{'name': vars.ENTITY_NAME, 'seed': vars.SEED_LIST}],
                     seed=vars.SEED,
                     **init_config
@@ -178,9 +178,7 @@ if __name__ == '__main__':
 
     mlp_model = Sequential()
     mlp_model.add(Embedding(model_dims['num_labels'], EMBEDDING_SIZE, input_length=model_dims['in_dim']))
-    mlp_model.add(Conv1D(100, 2, activation='relu'))
-    mlp_model.add(Flatten())
-    mlp_model.add(Dense(500, activation='relu'))
+    mlp_model.add(Dense(1000, activation='relu'))
     mlp_model.add(Dropout(0.5))
     mlp_model.add(Dense(model_dims['out_dim'], activation='softmax'))
 
