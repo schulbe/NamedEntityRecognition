@@ -19,6 +19,7 @@ from gutenberg.util.io_operations import pickle_object
 from gutenberg.util.io_operations import load_pickle
 from pathlib import Path
 import gc
+import logging
 
 
 class NERTagger:
@@ -32,7 +33,7 @@ class NERTagger:
                  seed,
                  **kwargs):
         t = datetime.now()
-        print(f'{(datetime.now()-t)} -- Initializing...')
+        logging.info('Initializing...')
         self.corpus = corpus
 
         # TODO: change for multiple possible labels
@@ -44,11 +45,11 @@ class NERTagger:
         self.train_min_pos_rate = train_min_pos_rate
         self.seed = seed
 
-        print(f'{(datetime.now()-t)} -- Tokenizing Corpus...')
+        logging.info('Tokenizing Corpus...')
         self.tokenized_corpus = [text_to_word_sequence(doc) for doc in self.corpus]
 
+        logging.info('Fitting Encoder...')
         self.encoder = FastEncoder()
-        print(f'{(datetime.now()-t)} -- Fitting Encoder...')
         self.encoder.fit([token.lower() for doc in self.tokenized_corpus for token in doc]
                          + self.seedlist +
                          ['\u0002PADDING\u0002'] +
@@ -62,7 +63,7 @@ class NERTagger:
         self.encoded_entity = self.encoder.transform([f'\u0002{self.entity_name}\u0002'])
 
         if not kwargs.get('load', False):
-            print(f'{(datetime.now()-t)} -- Getting Token Counts...')
+            logging.info('Getting Token Counts...')
             self.token_rel = self.get_token_count(relative=True)
             self.token_abs = self.get_token_count(relative=False)
 
@@ -86,10 +87,7 @@ class NERTagger:
 
         self.encoded_corpus = list()
         for i, doc in enumerate(self.tokenized_corpus):
-            try:
-                self.encoded_corpus.append(self.encoder.transform(doc))
-            except:
-                import ipdb; ipdb.set_trace()
+            self.encoded_corpus.append(self.encoder.transform(doc))
             p.print_progress(i+1)
 
     def predict_token_probabilities_iterated(self, text, thres=0, mask_thres=0.5):
@@ -105,7 +103,6 @@ class NERTagger:
         return list(zip([t[0] for t in token_probas], [t[1] for t in masked_token_probas]))
 
     def predict_token_probabilities(self, text, thres=0):
-        # import ipdb; ipdb.set_trace()
         encoded_text = self.encoder.transform(text_to_word_sequence(text))
         ngrams, _, tokens = self.create_training_data(np.array([encoded_text]))
 
@@ -136,25 +133,30 @@ class NERTagger:
         token_mean_proba = {k: sum(v)/len(v) for k, v in token_probas.items()}
         return token_mean_proba
 
-    def do_iteration(self, t=None):
+    def do_iteration(self):
         gc.collect()
 
-        if t is None:
-            t = datetime.now()
-        print(f'{(datetime.now()-t)} -- Creating training data...')
+        logging.info('Creating training data...')
         X, y, tokens = self.create_training_data(self.encoded_corpus, progressbar=True)
-        print(f'{(datetime.now()-t)} -- Masking Training Data...')
+
+        logging.info('Masking Training Data...')
         X_masked = X.copy()
         X_masked[np.isin(X_masked, self.encoded_seedlist)] = self.encoded_entity
-        print(f'{(datetime.now()-t)} -- Stratifying for equal positives and negatives...')
-        X_strat, y_strat = self.duplicate_positives(X_masked, y)
-        print(f'{(datetime.now()-t)} -- Training Classifier...')
-        _ = self.model.fit(X_strat, y_strat)
-        print()
-        print(f'{(datetime.now()-t)} -- Calculating Name Probabilities...')
+
+        # logging.info('Stratifying for equal positives and negatives...')
+        # X_strat, y_strat = self.duplicate_positives(X_masked, y)
+        #
+        # logging.info('Training Classifier...')
+        # _ = self.model.fit(X_strat, y_strat)
+
+        logging.info('Training Classifier...')
+        _ = self.model.fit(X_masked, y, class_weight={0: sum(y[:, 1]), 1: sum(y[:, 0])})
+
+        logging.info('Calculating Name Probabilities...')
         name_probas = list(zip(tokens, self.model.predict_proba(X)[:, 1]))
-        print()
-        del X_masked, X, y, X_strat, y_strat, tokens
+
+        del X_masked, X, y, tokens
+        # del X_masked, X, y, X_strat, y_strat, tokens
         gc.collect()
         return name_probas
 
@@ -163,14 +165,15 @@ class NERTagger:
         iteration = 0
         update_rate = None
 
-        t = datetime.now()
         while iteration < max_iterations and (update_rate is None or update_rate >= min_update_rate):
             iteration += 1
-            print(f'\n{(datetime.now()-t)} -- ITERATION {iteration}....\n')
-            name_probas = self.do_iteration(t=t)
-            print(f'{(datetime.now()-t)} -- Get New Seed Probabilities...')
+            logging.info('ITERATION {iteration}....')
+            name_probas = self.do_iteration()
+
+            logging.info('Get New Seed Probabilities...')
             self.token_mean_probas = self.get_mean_name_probas(name_probas)
-            print(f'{(datetime.now()-t)} -- Updating Seed List...')
+
+            logging.info('Updating Seed List...')
             new_whitelist_items = list()
             p = Progressor(len(self.token_mean_probas))
             for i, (token, proba) in enumerate(self.token_mean_probas.items()):
@@ -180,8 +183,8 @@ class NERTagger:
             update_rate = len(new_whitelist_items)/len(self.encoded_seedlist)
             self.encoded_seedlist = np.append(self.encoded_seedlist, new_whitelist_items)
 
-            print(f'\n{(datetime.now()-t)} -- Update Rate of Seed List: {update_rate}')
-            print(f'{(datetime.now()-t)} -- Size of Seed List: {len(self.encoded_seedlist)}\n')
+            logging.info('Update Rate of Seed List: {update_rate}')
+            logging.info('Size of Seed List: {len(self.encoded_seedlist)}\n')
 
             if iteration_save_path and save_iterations is None or iteration in save_iterations:
                 if not iteration_save_path.endswith('/'):
@@ -189,9 +192,9 @@ class NERTagger:
                 p = iteration_save_path + f'iteration_{iteration}'
                 os.makedirs(p, exist_ok=True)
                 self.save(p)
-                print(f'{(datetime.now()-t)} -- Saved Iteration {iteration}\n')
+                logging.info('Saved Iteration {iteration}')
 
-        print(f'{(datetime.now()-t)} -- Successfully iterated {iteration} times!')
+        logging.info('Successfully iterated {iteration} times!')
         self.iterations = iteration
 
     def create_training_data(self, encoded_text, progressbar=False):
