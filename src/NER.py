@@ -38,7 +38,7 @@ class NERTagger:
 
         # TODO: change for multiple possible labels
         self.seedlist = entities[0]['seed']
-        self.entity_name = entities[0]['name']
+        self.entity_name = entities[0]['name'].lower()
         self.window = window
         self.n_jobs = n_jobs
 
@@ -53,7 +53,7 @@ class NERTagger:
         self.encoder.fit([token.lower() for doc in self.tokenized_corpus for token in doc]
                          + self.seedlist +
                          ['\u0002PADDING\u0002'] +
-                         [f'\u0002{ent["name"]}\u0002' for ent in entities])
+                         [f'\u0002{ent["name"].lower()}\u0002' for ent in entities])
         self.encoded_corpus = None
         self.encode_corpus()
         self.encoded_seedlist = self.encoder.transform(self.seedlist)
@@ -192,9 +192,9 @@ class NERTagger:
                 p = iteration_save_path + f'iteration_{iteration}'
                 os.makedirs(p, exist_ok=True)
                 self.save(p)
-                logging.info('Saved Iteration {iteration}')
+                logging.info(f'Saved Iteration {iteration}')
 
-        logging.info('Successfully iterated {iteration} times!')
+        logging.info(f'Successfully iterated {iteration} times!')
         self.iterations = iteration
 
     def create_training_data(self, encoded_text, progressbar=False):
