@@ -8,7 +8,7 @@ set_random_seed(vars.SEED)
 # sys.path.append('/home/bschulz/repos/datascience_app_tm_gutenberg/gutenberg/')
 # from textpreparation.NER import NERTagger, NERIterator
 
-from NER import NERTagger
+from src.NER import NERTagger
 
 import mlflow
 import json

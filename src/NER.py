@@ -183,8 +183,8 @@ class NERTagger:
             update_rate = len(new_whitelist_items)/len(self.encoded_seedlist)
             self.encoded_seedlist = np.append(self.encoded_seedlist, new_whitelist_items)
 
-            logging.info('Update Rate of Seed List: {update_rate}')
-            logging.info('Size of Seed List: {len(self.encoded_seedlist)}\n')
+            logging.info(f'Update Rate of Seed List: {update_rate}')
+            logging.info(f'Size of Seed List: {len(self.encoded_seedlist)}\n')
 
             if iteration_save_path and save_iterations is None or iteration in save_iterations:
                 if not iteration_save_path.endswith('/'):
@@ -382,6 +382,7 @@ class FastEncoder:
             return np.reshape([self.inverse_transform(sublist) for sublist in trf_tokens], trf_tokens.shape)
         else:
             return np.reshape([self.reverse_dic[t] for t in trf_tokens], trf_tokens.shape)
+
 
 class Progressor:
     def __init__(self, n):
