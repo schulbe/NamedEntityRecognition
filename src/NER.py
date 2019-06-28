@@ -186,6 +186,8 @@ class NERTagger:
             logging.info(f'Update Rate of Seed List: {update_rate}')
             logging.info(f'Size of Seed List: {len(self.encoded_seedlist)}\n')
 
+            import ipdb; ipdb.set_trace()
+
             if iteration_save_path and save_iterations is None or iteration in save_iterations:
                 if not iteration_save_path.endswith('/'):
                     iteration_save_path = iteration_save_path + '/'
