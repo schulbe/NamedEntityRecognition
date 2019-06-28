@@ -211,12 +211,6 @@ if __name__ == '__main__':
 
         stats = [get_precision_recall(ner, vars.LABELLED, 150, vars.SEED_DOCS) for ner in ners]
 
-        # mlflow.log_param('ner_window', ner.ner_window)
-        # mlflow.log_param('w2v_window', ner.w2v_window)
-        # mlflow.log_param('w2v_size', ner.w2v_size)
-        # mlflow.log_param('nn_epochs', ner.nn_epochs)
-        # mlflow.log_param('nn_hidden_layer', ner.nn_hidden_layer)
-        # mlflow.log_param('nn_batch_size', ner.nn_batch_size)
         mlflow.log_param('train_min_pos_rate', ner.train_min_pos_rate)
         mlflow.log_param('iterations', ner.iterations)
         mlflow.log_param('max_iterations', generate_config['max_iterations'])

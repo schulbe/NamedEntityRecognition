@@ -149,7 +149,6 @@ class NERTagger:
         print(f'{(datetime.now()-t)} -- Stratifying for equal positives and negatives...')
         X_strat, y_strat = self.duplicate_positives(X_masked, y)
         print(f'{(datetime.now()-t)} -- Training Classifier...')
-        import ipdb; ipdb.set_trace()
         _ = self.model.fit(X_strat, y_strat)
         print()
         print(f'{(datetime.now()-t)} -- Calculating Name Probabilities...')
