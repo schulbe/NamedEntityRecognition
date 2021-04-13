@@ -1,22 +1,13 @@
-from multiprocessing import Pool
-import math
-import re
-from gensim.models import Word2Vec
+import dill as dill
 import numpy as np
-from gutenberg.classification.keras import mlp
-from keras.wrappers.scikit_learn import KerasClassifier
-from keras.utils import to_categorical
-from keras.preprocessing.text import text_to_word_sequence
-from sklearn.preprocessing import LabelEncoder
-import tensorflow as tf
-from keras import backend as K
+from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.preprocessing.text import text_to_word_sequence
 import os
 from collections import defaultdict
-import keras
+import tensorflow.keras as keras
 from datetime import datetime, timedelta
 import sys
-from gutenberg.util.io_operations import pickle_object
-from gutenberg.util.io_operations import load_pickle
 from pathlib import Path
 import gc
 import logging
@@ -59,8 +50,8 @@ class NERTagger:
         self.encoded_seedlist = self.encoder.transform(self.seedlist)
 
         # TODO: change for multiple possible labels
-        self.encoded_padding = self.encoder.transform(['\u0002PADDING\u0002'])
-        self.encoded_entity = self.encoder.transform([f'\u0002{self.entity_name}\u0002'])
+        self.encoded_padding = self.encoder.transform(['\u0002PADDING\u0002'])[0]
+        self.encoded_entity = self.encoder.transform([f'\u0002{self.entity_name}\u0002'])[0]
 
         if not kwargs.get('load', False):
             logging.info('Getting Token Counts...')
@@ -302,7 +293,10 @@ class NERTagger:
 
         os.makedirs(str(path), exist_ok=True)
         self.model.model.save(str(path / 'model.h5'))
-        pickle_object(str(path / 'attributes.pkl'), obj=attributes)
+        # self.model.save(str(path / 'model.h5'))
+
+        with open(os.path.join(path, 'attributes.pkl'), 'wb') as f:
+            dill.dump(attributes, f)
 
     @classmethod
     def load(cls, path):
@@ -421,3 +415,84 @@ class Progressor:
             if iteration == self.total:
                 sys.stdout.write('\n')
             sys.stdout.flush()
+
+if __name__ == '__main__':
+    corpus = [
+        'OMG! I love driving my new Mercedes!',
+        'Guys look how cool my friend looks driving my new VW. He\'s loving it!',
+        'I have always dreamt of buying a campervan from my friend.'
+        'Today I will finally get my new Computer.'
+        'I have always dreamt of a campervan from VW.'
+        'He doesn\'t seem to like driving his new Lamborghini!'
+    ]
+
+    seed_list = ['Mercedes', 'Lamborghini']
+
+
+    tagger = NERTagger(corpus,
+                   entities = [{'name': 'CAR_BRAND', 'seed': seed_list}],
+                   seed = 1234, # for reproducability
+                   window = 3, # context window around desired word ( designed for not using advanced layers like LSTM)
+                   n_jobs = 1, # for large datasets, multiple jobs will be faster
+                   train_min_pos_rate = 0.5 # How confident does the model have to be in order to adjust the seed list
+                   )
+
+    from tensorflow.keras.models import Sequential
+    from tensorflow.keras.layers import Dense, Flatten, Embedding, Dropout, Input
+    from tensorflow.keras.optimizers import Adam
+
+    from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
+
+
+    EMBEDDING_SIZE = 100
+    model_dims = tagger.get_required_dimensions()
+
+    mlp_model = Sequential()
+    mlp_model.add(Embedding(model_dims['num_labels'], EMBEDDING_SIZE, input_length=model_dims['in_dim']))
+    mlp_model.add(Flatten())
+    mlp_model.add(Dense(500, activation='relu'))
+    mlp_model.add(Dropout(0.5))
+    mlp_model.add(Dense(model_dims['out_dim'], activation='softmax'))
+
+    MODEL_PARAMS = {
+        "epochs": 10,
+        "batch_size": 2,
+        "loss": "categorical_crossentropy",
+        "metrics": ["accuracy"],
+        "optimizer": Adam(amsgrad=False,
+                          beta_1=0.9,
+                          beta_2=0.999,
+                          decay=0.00,
+                          epsilon=1e-8,
+                          lr=0.001),
+    }
+
+    # def compile_model(model, loss, optimizer, metrics):
+    #     model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
+    #     return model
+
+    mlp_model.compile(loss= "categorical_crossentropy",
+                      metrics= ["accuracy"],
+                      optimizer= Adam(amsgrad=False,
+                                      beta_1=0.9,
+                                      beta_2=0.999,
+                                      decay=0.00,
+                                      epsilon=1e-8,
+                                      lr=0.001))
+    # model = KerasClassifier(build_fn=compile_model, model=mlp_model, **MODEL_PARAMS)
+
+    tagger.set_model(mlp_model)
+
+    import os
+
+    generate_config = {
+        'max_iterations': 20,
+        'min_probability': 0.7,
+        'min_update_rate': 0.1
+    }
+
+    os.makedirs('example_run', exist_ok=True)
+
+    tagger.generate_predictive_rules(iteration_save_path='example_run',
+                                     save_iterations=list(range(generate_config['max_iterations']+1)),
+                                     **generate_config)
