@@ -23,7 +23,7 @@ In this context `Sabine Müller` gets recognized as a `PERSON` by spacy. However
 
 I experienced this fact to make such taggers close to useless for *realistic* corpora like Tweets, Emails, etc.
 
-This project presents a proof of concept for a different more robust approach that is loosely based on **LINK**.
+This project presents a proof of concept for a different more robust approach. (This might very well be outdated now, a few years later)
 I evaluated it on data that is not publicly available and can thus not be provided here, however this approach did outperform
 Spacy significantly. Feel free to evaluate your own datasets.
 

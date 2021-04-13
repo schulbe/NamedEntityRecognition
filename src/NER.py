@@ -14,7 +14,6 @@ import logging
 
 
 class NERTagger:
-
     def __init__(self,
                  corpus,
                  entities, # list of dicts {name: "ENTITY_NAME", seed: [seed_1, seed_2,...]}
@@ -23,6 +22,24 @@ class NERTagger:
                  train_min_pos_rate,
                  seed,
                  **kwargs):
+        """
+        Main Class for approaching the iterative tagging process. Since this is mainly a proof of concept,
+        it is not really ready to be used for anything else but "quick and dirty" experimentation on different datat sets.
+        It was written some years back using Tensorflow 1 and has been updated to match a TF2 version since then.
+        Howerver it remains a proof of concept.
+
+        The Tagger is supposed to use a small list of seeds on a large corpus to find entities that appear in similar
+        contexts and might therefore also be of the same entity.
+
+        :param corpus: List of documents to be processed
+        :param entities: entity name and a list of seeds, should accept multiple in the future
+        :param window: The window around each word to be concidered
+        :param n_jobs: used for multiprocessing
+        :param train_min_pos_rate: In the iterative training process, how many of all occurences of a word have to be positive
+                in order for the seedlist to be updated
+        :param seed: just for reproduceability
+        :param kwargs: used for compatibility at some point
+        """
         t = datetime.now()
         logging.info('Initializing...')
         self.corpus = corpus
@@ -44,7 +61,8 @@ class NERTagger:
         self.encoder.fit([token.lower() for doc in self.tokenized_corpus for token in doc]
                          + self.seedlist +
                          ['\u0002PADDING\u0002'] +
-                         [f'\u0002{ent["name"]}\u0002' for ent in entities])
+                         [f'\u0002{ent["name"]}\u0002' for ent in entities] +
+                         ['\u0002UNKNOWN\u0002'])
         self.encoded_corpus = None
         self.encode_corpus()
         self.encoded_seedlist = self.encoder.transform(self.seedlist)
@@ -63,6 +81,11 @@ class NERTagger:
         self.iterations = 0
 
     def set_model(self, model):
+        """
+        Set the keras model to be reinitialized each iteration
+        :param model: KerasClassifier
+        :return:
+        """
         self.model = model
 
     def get_required_dimensions(self):
@@ -94,13 +117,22 @@ class NERTagger:
         return list(zip([t[0] for t in token_probas], [t[1] for t in masked_token_probas]))
 
     def predict_token_probabilities(self, text, thres=0):
-        encoded_text = self.encoder.transform(text_to_word_sequence(text))
+        """
+        Predicts the probability of  a token to belong to the given entity.
+        :param text: Text to be evaluated
+        :param thres: Can be set to some value to avoid very small values like 1E-7 (could also be rounded later)
+        :return: List of tuples conatining tokens and their probabilities
+        """
+        word_sequence = text_to_word_sequence(text)
+        encoded_text = self.encoder.transform(word_sequence)
         ngrams, _, tokens = self.create_training_data(np.array([encoded_text]))
 
         # mask
         ngrams[np.isin(ngrams, self.encoded_seedlist)] = self.encoded_entity
 
-        decoded_tokens = self.encoder.inverse_transform(tokens)
+        decoded_tokens = [t if 'UNKNOWN' not in t else word_sequence[i]
+                          for i, t in enumerate(self.encoder.inverse_transform(tokens))]
+
         return list(zip(decoded_tokens, [i if i > thres else 0 for num, i in enumerate(self.model.predict_proba(ngrams)[:,1])]))
 
     def get_token_count(self, relative=True):
@@ -153,6 +185,16 @@ class NERTagger:
 
     def generate_predictive_rules(self, max_iterations=10, min_probability=0.9, min_update_rate=0.1,
                                   iteration_save_path=None, save_iterations=None):
+        """
+        Generates the contextual Rules for entities to be discovered.
+
+        :param max_iterations: maximum number of times the seedlist gets updated and training is redone
+        :param min_probability: minimum probability for a token to be concidered of the given entity
+        :param min_update_rate: minimum rate of updates to be carried out before training is concidered complete
+        :param iteration_save_path: where to save iterations (for later analysis)
+        :param save_iterations: whether or not to save iterations
+        :return:
+        """
         iteration = 0
         update_rate = None
 
@@ -215,52 +257,6 @@ class NERTagger:
 
         return X_train, y_train, tokens
 
-
-    #
-    # def worker_get_name_probas(self, ngrams, wv, progressbar=False):
-    #     def replace_seed(listlike):
-    #         return [x if x not in self.whitelist else f'\u0002{self.entity_name}\u0002' for x in listlike]
-    #     vecs = list()
-    #     tokens = list()
-    #     p = Progressor(len(ngrams))
-    #     for i, (token, neighbours) in enumerate(ngrams):
-    #         try:
-    #             vector = wv[neighbours].reshape(1,-1)
-    #         except KeyError:
-    #             vector = wv[replace_seed(neighbours)].reshape(1,-1)
-    #         vecs.append(vector)
-    #         tokens.append(token)
-    #         if progressbar:
-    #             p.print_progress(i+1)
-    #     vecs = np.array(vecs)
-    #     vecs = vecs.reshape((vecs.shape[0], vecs.shape[2]))
-    #     return tokens, vecs
-    #
-    # def get_name_probabilities(self, ngrams, wv, clf):
-    #     # TODO
-    #     if self.n_jobs <= -1:
-    #         return self.worker_get_name_probas(ngrams, wv)
-    #     else:
-    #         chunks = self.get_chunks(ngrams, self.n_jobs)
-    #
-    #         pool = Pool(processes=self.n_jobs)
-    #         results = [pool.apply_async(self.worker_get_name_probas, args=(chunk, wv)) for chunk in chunks[:-1]]
-    #         results.append(pool.apply_async(self.worker_get_name_probas, args=(chunks[-1], wv), kwds={'progressbar': True}))
-    #         tokens = list()
-    #         vecs = None
-    #
-    #         for r in results:
-    #             t, v = r.get()
-    #             if vecs is None:
-    #                 vecs = v
-    #             else:
-    #                 vecs = np.append(vecs, v, axis=0)
-    #             tokens.extend(t)
-    #         pool.close()
-    #         pool.join()
-    #
-    #         return list(zip(tokens, clf.predict_proba(vecs)[:,1]))
-    #
     def duplicate_positives(self, X, y):
         n_pos = int(np.sum(y[:, 1]))
         n_all = y.shape[0]
@@ -363,7 +359,7 @@ class FastEncoder:
         if tokens.ndim > 1:
             return np.reshape([self.transform(sublist) for sublist in tokens], tokens.shape)
         else:
-            return np.reshape([self.dic[t] for t in tokens], tokens.shape)
+            return np.reshape([self.dic.get(t, self.dic['\u0002UNKNOWN\u0002']) for t in tokens], tokens.shape)
 
     def fit_transform(self, tokens):
         self.fit(tokens)
@@ -415,84 +411,3 @@ class Progressor:
             if iteration == self.total:
                 sys.stdout.write('\n')
             sys.stdout.flush()
-
-if __name__ == '__main__':
-    corpus = [
-        'OMG! I love driving my new Mercedes!',
-        'Guys look how cool my friend looks driving my new VW. He\'s loving it!',
-        'I have always dreamt of buying a campervan from my friend.'
-        'Today I will finally get my new Computer.'
-        'I have always dreamt of a campervan from VW.'
-        'He doesn\'t seem to like driving his new Lamborghini!'
-    ]
-
-    seed_list = ['Mercedes', 'Lamborghini']
-
-
-    tagger = NERTagger(corpus,
-                   entities = [{'name': 'CAR_BRAND', 'seed': seed_list}],
-                   seed = 1234, # for reproducability
-                   window = 3, # context window around desired word ( designed for not using advanced layers like LSTM)
-                   n_jobs = 1, # for large datasets, multiple jobs will be faster
-                   train_min_pos_rate = 0.5 # How confident does the model have to be in order to adjust the seed list
-                   )
-
-    from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import Dense, Flatten, Embedding, Dropout, Input
-    from tensorflow.keras.optimizers import Adam
-
-    from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
-
-
-    EMBEDDING_SIZE = 100
-    model_dims = tagger.get_required_dimensions()
-
-    mlp_model = Sequential()
-    mlp_model.add(Embedding(model_dims['num_labels'], EMBEDDING_SIZE, input_length=model_dims['in_dim']))
-    mlp_model.add(Flatten())
-    mlp_model.add(Dense(500, activation='relu'))
-    mlp_model.add(Dropout(0.5))
-    mlp_model.add(Dense(model_dims['out_dim'], activation='softmax'))
-
-    MODEL_PARAMS = {
-        "epochs": 10,
-        "batch_size": 2,
-        "loss": "categorical_crossentropy",
-        "metrics": ["accuracy"],
-        "optimizer": Adam(amsgrad=False,
-                          beta_1=0.9,
-                          beta_2=0.999,
-                          decay=0.00,
-                          epsilon=1e-8,
-                          lr=0.001),
-    }
-
-    # def compile_model(model, loss, optimizer, metrics):
-    #     model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
-    #     return model
-
-    mlp_model.compile(loss= "categorical_crossentropy",
-                      metrics= ["accuracy"],
-                      optimizer= Adam(amsgrad=False,
-                                      beta_1=0.9,
-                                      beta_2=0.999,
-                                      decay=0.00,
-                                      epsilon=1e-8,
-                                      lr=0.001))
-    # model = KerasClassifier(build_fn=compile_model, model=mlp_model, **MODEL_PARAMS)
-
-    tagger.set_model(mlp_model)
-
-    import os
-
-    generate_config = {
-        'max_iterations': 20,
-        'min_probability': 0.7,
-        'min_update_rate': 0.1
-    }
-
-    os.makedirs('example_run', exist_ok=True)
-
-    tagger.generate_predictive_rules(iteration_save_path='example_run',
-                                     save_iterations=list(range(generate_config['max_iterations']+1)),
-                                     **generate_config)

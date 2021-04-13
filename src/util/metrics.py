@@ -1,4 +1,4 @@
-    def get_precision_recall(ner, labels, max_num, seed_docs):
+def get_precision_recall(ner, labels, max_num, seed_docs):
     true_pos = 0
     false_pos = 0
     true_neg = 0
